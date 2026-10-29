@@ -1,0 +1,11 @@
+timestamp,service,severity,message,evidence_type,trace_id,span_id
+2026-03-15T14:20:00Z,payment-service,INFO,Service version v2.4.1 initialized successfully,LOG,trc-init-001,spn-001
+2026-03-15T14:22:15Z,payment-service,WARN,Database connection pool usage above 85% (170/200 active connections),LOG,trc-db-101,spn-002
+2026-03-15T14:24:00Z,payment-service,CRITICAL,Database connection pool exhausted. Active connections: 200/200. Queued requests timed out after 5000ms.,LOG,trc-db-102,spn-003
+2026-03-15T14:24:30Z,payment-service,HIGH,HTTP POST /api/v1/charge returned 504 Gateway Timeout,TRACE,trc-chg-201,spn-004
+2026-03-15T14:25:00Z,api-gateway,ERROR,Downstream service 'payment-service' circuit breaker tripped to OPEN state,LOG,trc-gw-301,spn-005
+2026-03-15T14:25:45Z,order-service,ERROR,Order processing stalled: unable to complete payment authorization for cart #98124,LOG,trc-ord-401,spn-006
+2026-03-15T14:26:30Z,notification-service,WARN,Failed to send customer order confirmation SMS: payment pending,LOG,trc-notif-501,spn-007
+2026-03-15T14:28:00Z,payment-service,INFO,Emergency connection pool capacity expanded from 200 to 400 connections,LOG,trc-cfg-601,spn-008
+2026-03-15T14:29:00Z,payment-service,INFO,Active database connections stabilized at 145/400. Queue cleared.,LOG,trc-db-103,spn-009
+2026-03-15T14:30:00Z,api-gateway,INFO,Payment-service circuit breaker reset to CLOSED state. Latency normalized.,LOG,trc-gw-302,spn-010

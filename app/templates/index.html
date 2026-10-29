@@ -253,6 +253,9 @@
                     <select id="select-incident" class="form-select"></select>
                 </div>
                 <div class="toolbar-right">
+                    <button id="btn-open-csv-upload" class="btn btn-secondary" title="Upload and ingest CSV logs for this incident">
+                        <span class="btn-icon">&#128228;</span> Upload CSV Logs
+                    </button>
                     <button id="btn-run-rca" class="btn btn-primary" title="Run complete RCA with deterministic scoring and verified AI hypothesis">
                         <span class="btn-icon">&#9658;</span> Run Root Cause Analysis
                     </button>
@@ -260,6 +263,7 @@
                         Deterministic Only
                     </button>
                 </div>
+
             </div>
 
             <!-- Incident Overview Header Banner -->
@@ -532,8 +536,14 @@
                         <h2>Evidence Explorer</h2>
                         <span class="card-subtitle">Filter, search, and audit normalized telemetry across services and source types</span>
                     </div>
-                    <span class="badge badge-neutral" id="explorer-count-badge">0 records</span>
+                    <div class="flex-align-center flex-gap">
+                        <button id="btn-explorer-csv-upload" class="btn btn-sm btn-primary">
+                            <span class="btn-icon">&#128228;</span> Upload CSV Logs
+                        </button>
+                        <span class="badge badge-neutral" id="explorer-count-badge">0 records</span>
+                    </div>
                 </div>
+
 
                 <!-- Explorer Filter Controls -->
                 <div class="explorer-filter-panel">
@@ -854,8 +864,216 @@
         </section>
     </main>
 
+    <!-- ================= CSV LOG UPLOAD & PREVIEW MODAL ================= -->
+    <div id="csv-upload-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="csv-modal-title">
+        <div class="modal-card modal-lg csv-modal-card">
+            <div class="modal-header">
+                <div>
+                    <div class="brand-name-row">
+                        <span class="badge badge-purple">&#128228; INGESTION</span>
+                        <h3 id="csv-modal-title" class="brand-title" style="font-size: 1.25rem;">Upload Incident CSV Logs</h3>
+                    </div>
+                    <p class="text-muted small mt-1">
+                        Validate, preview, and ingest real telemetry records into incident 
+                        <strong id="csv-target-incident-badge" class="badge-id">INC-2026-001</strong>
+                    </p>
+                </div>
+                <button id="btn-close-csv-modal" class="modal-close" aria-label="Close modal">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Target Incident Select Row -->
+                <div class="csv-incident-select-row mb-3 flex-between">
+                    <div class="flex-align-center flex-gap">
+                        <label for="csv-incident-select" class="form-label mb-0" style="font-size: 0.85rem;">Target Incident:</label>
+                        <select id="csv-incident-select" class="form-select sm" style="min-width: 240px;"></select>
+                    </div>
+                    <div class="csv-spec-info text-muted small">
+                        Accepted: <strong>.csv</strong> &bull; Max size: <strong>10 MB</strong> &bull; Max rows: <strong>5,000</strong>
+                    </div>
+                </div>
+
+                <!-- Alert / Error Banner -->
+                <div id="csv-alert-banner" class="alert-banner alert-danger hidden" style="display: none;">
+                    <span id="csv-alert-message"></span>
+                </div>
+
+                <!-- Upload Drag-and-Drop Area (Step 1) -->
+                <div id="csv-dropzone" class="csv-dropzone-box">
+                    <input type="file" id="csv-file-input" accept=".csv,text/csv" class="hidden" style="display: none;">
+                    <div class="dropzone-icon">&#128229;</div>
+                    <h4 class="dropzone-title">Drag & drop your CSV log file here</h4>
+                    <p class="dropzone-subtitle text-muted">or click anywhere in this box to browse local files</p>
+                    <div class="dropzone-formats">
+                        <span class="badge badge-neutral">Standard CSV</span>
+                        <span class="badge badge-neutral">UTF-8 / UTF-8-BOM</span>
+                        <span class="badge badge-neutral">Auto Header Mapping</span>
+                    </div>
+                </div>
+
+                <!-- Selected File Card (Visible after file selection) -->
+                <div id="csv-selected-file-card" class="card mt-2 hidden" style="display: none; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color);">
+                    <div class="flex-between">
+                        <div class="flex-align-center flex-gap">
+                            <span class="file-icon" style="font-size: 1.5rem;">&#128196;</span>
+                            <div>
+                                <div id="csv-file-name" class="font-mono font-bold" style="font-size: 0.9rem; color: #F3F4F6;">filename.csv</div>
+                                <div id="csv-file-size" class="text-muted small">0 KB</div>
+                            </div>
+                        </div>
+                        <div class="flex-gap">
+                            <button type="button" id="btn-change-csv-file" class="btn btn-xs btn-secondary">Replace</button>
+                            <button type="button" id="btn-remove-csv-file" class="btn btn-xs btn-danger-outline" title="Remove file">&times; Remove</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload & Processing Progress Bar -->
+                <div id="csv-progress-container" class="mt-3 hidden" style="display: none;">
+                    <div class="flex-between mb-1">
+                        <span id="csv-progress-label" class="text-muted small">Processing and validating CSV rows...</span>
+                        <span id="csv-progress-percent" class="font-mono small text-info">100%</span>
+                    </div>
+                    <div class="progress-bar-bg" style="height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden;">
+                        <div id="csv-progress-bar" class="progress-bar-fill" style="width: 100%; height: 100%; background: linear-gradient(90deg, #6366F1, #38BDF8); transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Validation Summary & Metrics -->
+                <div id="csv-validation-section" class="mt-3 hidden" style="display: none;">
+                    <div class="validation-summary-grid">
+                        <div class="val-stat-card">
+                            <span class="val-label">Total Rows</span>
+                            <span id="val-total-rows" class="val-val">0</span>
+                        </div>
+                        <div class="val-stat-card success">
+                            <span class="val-label text-success">Valid Records</span>
+                            <span id="val-valid-rows" class="val-val text-success">0</span>
+                        </div>
+                        <div class="val-stat-card warning">
+                            <span class="val-label text-warning">Duplicates</span>
+                            <span id="val-duplicate-rows" class="val-val text-warning">0</span>
+                        </div>
+                        <div class="val-stat-card danger">
+                            <span class="val-label text-danger">Invalid Rows</span>
+                            <span id="val-invalid-rows" class="val-val text-danger">0</span>
+                        </div>
+                        <div class="val-stat-card info">
+                            <span class="val-label text-info">Services</span>
+                            <span id="val-services-count" class="val-val text-info">0</span>
+                        </div>
+                    </div>
+
+                    <!-- Validation Warnings (if any) -->
+                    <div id="csv-warnings-container" class="mt-2 hidden" style="display: none;">
+                        <div class="alert-banner alert-warning" style="font-size: 0.8rem; padding: 0.5rem 0.75rem;">
+                            <div id="csv-warnings-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Row-level Errors Box (if any) -->
+                    <div id="csv-errors-container" class="mt-2 hidden" style="display: none;">
+                        <div class="card" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.3);">
+                            <div class="card-header flex-between py-2" style="background: transparent;">
+                                <span class="text-danger font-bold" style="font-size: 0.85rem;">
+                                    <span>&#9888;</span> Row Validation Errors (<span id="csv-error-count">0</span>)
+                                </span>
+                                <span class="text-muted small">Invalid rows will be excluded from import</span>
+                            </div>
+                            <div class="card-body py-1" style="max-height: 140px; overflow-y: auto;">
+                                <table class="data-table small" style="font-size: 0.8rem;">
+                                    <thead>
+                                        <tr>
+                                            <th>Row #</th>
+                                            <th>Field</th>
+                                            <th>Error Description</th>
+                                            <th>Sample Data</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="csv-errors-table-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Parsed Evidence Preview Table -->
+                    <div id="csv-preview-container" class="mt-3">
+                        <div class="flex-between mb-2">
+                            <span class="font-bold" style="font-size: 0.88rem; color: #E5E7EB;">
+                                <span>&#128065;</span> Evidence Preview (First <span id="csv-preview-count">0</span> Rows)
+                            </span>
+                            <span class="text-muted small">Records verified against schema rules</span>
+                        </div>
+                        <div class="table-responsive" style="max-height: 240px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px;">
+                            <table class="data-table small">
+                                <thead>
+                                    <tr>
+                                        <th>Row</th>
+                                        <th>Timestamp</th>
+                                        <th>Service</th>
+                                        <th>Type</th>
+                                        <th>Severity</th>
+                                        <th>Anomaly</th>
+                                        <th>Message / Summary</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="csv-preview-table-body">
+                                    <tr><td colspan="8" class="text-center text-muted py-3">No preview loaded.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Success Confirmation Panel (after commit) -->
+                <div id="csv-success-section" class="mt-3 hidden" style="display: none;">
+                    <div class="card text-center py-4" style="background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.4);">
+                        <div style="font-size: 2.5rem; color: #22C55E; line-height: 1; margin-bottom: 0.75rem;">&#10003;</div>
+                        <h3 style="color: #22C55E; margin-bottom: 0.5rem;">Ingestion Successfully Completed!</h3>
+                        <p id="csv-success-summary-text" class="text-muted" style="font-size: 0.9rem; max-width: 500px; margin: 0 auto 1.25rem;">
+                            Imported evidence records are now persisted and linked to the active incident.
+                        </p>
+                        <div class="success-stats-row flex-gap" style="justify-content: center; margin-bottom: 1.5rem;">
+                            <span class="badge badge-success" id="success-accepted-badge">0 Imported</span>
+                            <span class="badge badge-neutral" id="success-duplicates-badge">0 Duplicates Skipped</span>
+                            <span class="badge badge-warning" id="success-rejected-badge">0 Errors Skipped</span>
+                        </div>
+                        <div class="flex-gap" style="justify-content: center;">
+                            <button id="btn-success-run-rca" class="btn btn-primary">
+                                <span class="btn-icon">&#9658;</span> Run Root Cause Analysis Now
+                            </button>
+                            <button id="btn-success-close-modal" class="btn btn-secondary">
+                                View In Evidence Explorer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer Controls -->
+            <div class="modal-footer flex-between" style="padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); background: rgba(0,0,0,0.2);">
+                <div class="footer-left">
+                    <button type="button" id="btn-reset-csv-upload" class="btn btn-sm btn-secondary hidden" style="display: none;">
+                        &#8635; Upload Another File
+                    </button>
+                </div>
+                <div class="footer-right flex-gap">
+                    <button type="button" id="btn-cancel-csv-modal" class="btn btn-secondary">Cancel</button>
+                    <button type="button" id="btn-preview-csv-action" class="btn btn-secondary hidden" style="display: none;">
+                        <span>&#128065;</span> Re-Validate
+                    </button>
+                    <button type="button" id="btn-confirm-commit-csv" class="btn btn-success hidden" style="display: none;">
+                        <span>&#10003;</span> Confirm & Ingest Evidence
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal for Detailed Evidence Record Inspection -->
     <div id="evidence-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-evidence-id">
+
         <div class="modal-card">
             <div class="modal-header">
                 <div>
@@ -968,6 +1186,8 @@
     <script src="/static/js/auth.js?v=1.0.5"></script>
     <script src="/static/js/explorer.js?v=1.0.5"></script>
     <script src="/static/js/investigation.js?v=1.0.5"></script>
+    <script src="/static/js/csv_upload.js?v=1.0.5"></script>
     <script src="/static/js/app.js?v=1.0.5"></script>
 </body>
 </html>
+

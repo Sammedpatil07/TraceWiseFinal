@@ -13,6 +13,7 @@ from app.ingestion.generic_adapter import (
     GenericConfigAdapter,
 )
 from app.ingestion.demo_fixtures import load_demo_data
+from app.ingestion.csv_ingestor import CSVLogIngestor
 
 __all__ = [
     "BaseIngestionAdapter",
@@ -25,4 +26,6 @@ __all__ = [
     "GenericDeploymentAdapter",
     "GenericConfigAdapter",
     "load_demo_data",
+    "CSVLogIngestor",
 ]
+

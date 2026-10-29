@@ -17,6 +17,7 @@ PERMISSION_MATRIX: Dict[str, Dict[str, bool]] = {
         "view_service_graph": True,
         "view_evaluation": True,
         "ingest_telemetry": True,
+        "upload_csv_logs": True,
         "manage_users": True,
         "manage_roles": True,
         "view_audit_logs": True,
@@ -33,6 +34,7 @@ PERMISSION_MATRIX: Dict[str, Dict[str, bool]] = {
         "view_service_graph": True,
         "view_evaluation": True,
         "ingest_telemetry": False,
+        "upload_csv_logs": True,
         "manage_users": False,
         "manage_roles": False,
         "view_audit_logs": True,  # Limited to investigation history
@@ -49,6 +51,7 @@ PERMISSION_MATRIX: Dict[str, Dict[str, bool]] = {
         "view_service_graph": True,
         "view_evaluation": True,
         "ingest_telemetry": False,
+        "upload_csv_logs": False,
         "manage_users": False,
         "manage_roles": False,
         "view_audit_logs": False,
