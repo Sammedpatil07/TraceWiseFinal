@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AO-03 TraceWise — Evidence-First Incident Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css?v=2.2">
+    <!-- Chart.js for deterministic scoring breakdown -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="dark-theme">
+    <!-- Top Header -->
+    <header class="app-header">
+        <div class="header-brand">
+            <div class="logo-mark">AO-03</div>
+            <div class="brand-titles">
+                <div class="brand-name-row">
+                    <h1 class="brand-title">TraceWise</h1>
+                    <span class="brand-version-badge">v1.0 RCA</span>
+                </div>
+                <p class="tagline">Evidence-First Incident Intelligence &bull; "The incident is resolved; nobody knows why"</p>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs" role="tablist">
+            <button id="nav-btn-dashboard" class="nav-tab" data-tab="tab-dashboard" role="tab" aria-selected="false">
+                <span class="tab-icon">&#9638;</span> Dashboard
+            </button>
+            <button id="nav-btn-investigation" class="nav-tab" data-tab="tab-investigation" role="tab" aria-selected="false">
+                <span class="tab-icon">&#9670;</span> Incident Investigation
+            </button>
+            <button id="nav-btn-explorer" class="nav-tab" data-tab="tab-explorer" role="tab" aria-selected="false">
+                <span class="tab-icon">&#9776;</span> Evidence Explorer
+            </button>
+            <button id="nav-btn-evaluation" class="nav-tab" data-tab="tab-evaluation" role="tab" aria-selected="false">
+                <span class="tab-icon">&#9878;</span> Evaluation & Benchmark
+            </button>
+            <button id="nav-btn-admin" class="nav-tab hidden" data-tab="tab-admin" role="tab" aria-selected="false" style="display: none;">
+                <span class="tab-icon">&#9881;</span> Admin & Audit
+            </button>
+        </nav>
+
+        <div class="header-actions">
+            <!-- User Status / Role Badge -->
+            <div id="user-profile-badge" class="user-badge-container hidden" style="display: none;">
+                <span class="user-avatar-icon">&#128100;</span>
+                <span id="nav-username" class="user-name"></span>
+                <span id="nav-user-role" class="badge"></span>
+                <button id="btn-logout" class="btn btn-sm btn-danger-outline" title="Sign out of TraceWise">
+                    <span>&#8618;</span> Logout
+                </button>
+            </div>
+            <button id="btn-show-login" class="btn btn-primary btn-sm">
+                <span>&#128274;</span> Sign In
+            </button>
+            <button id="btn-load-demo" class="btn btn-secondary hidden" style="display: none;" title="Load synthetic demonstration fixtures (tagged SYNTHETIC_DEMO)">
+                <span class="btn-icon">&#10515;</span> Load Demo Data
+            </button>
+            <button id="btn-reset-data" class="btn btn-danger-outline hidden" style="display: none;" title="Clear local telemetry">
+                <span class="btn-icon">&#10006;</span> Reset
+            </button>
+        </div>
+    </header>
+
+    <!-- Global Toast / Alert Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Main Container -->
+    <main class="app-main">
+
+        <!-- ================= UNAUTHENTICATED GATE ================= -->
+        <section id="tab-unauthenticated" class="tab-pane active" role="tabpanel">
+            <div class="card text-center" style="max-width: 580px; margin: 3rem auto; padding: 2.5rem 2rem;">
+                <div class="logo-mark" style="display: inline-block; margin-bottom: 1.25rem;">AO-03</div>
+                <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem; letter-spacing: -0.01em;">TraceWise Incident Intelligence</h2>
+                <p class="text-secondary" style="font-size: 0.88rem; margin-bottom: 1.5rem; line-height: 1.5;">
+                    Evidence-First Incident Analysis &bull; Deterministic Root Cause Attribution
+                </p>
+                <div class="alert-banner" style="background: rgba(255, 97, 41, 0.1); border: 1px solid rgba(255, 97, 41, 0.35); color: #FF7145; margin-bottom: 1.5rem; justify-content: center; font-size: 0.85rem;">
+                    <span>&#128274; Authentication Required: Please sign in to access telemetry, investigations, and services.</span>
+                </div>
+                <button id="btn-hero-sign-in" class="btn btn-primary" onclick="Auth.showLoginModal()" style="font-size: 0.95rem; padding: 0.65rem 1.85rem;">
+                    <span>&#128274;</span> Sign In to TraceWise
+                </button>
+            </div>
+        </section>
+
+        <!-- ================= TAB 1: MAIN DASHBOARD ================= -->
+        <section id="tab-dashboard" class="tab-pane" role="tabpanel">
+            <!-- 6 Real Data Summary Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">Total Incidents</span>
+                        <span class="stat-badge total">INCIDENTS</span>
+                    </div>
+                    <div id="stat-total-incidents" class="stat-value">0</div>
+                    <div class="stat-sub">Resolved and active events</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">Active Incidents</span>
+                        <span class="stat-badge warning">ACTIVE</span>
+                    </div>
+                    <div id="stat-active-incidents" class="stat-value text-warning">0</div>
+                    <div class="stat-sub">Ongoing triage / mitigation</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">Resolved Incidents</span>
+                        <span class="stat-badge success">RESOLVED</span>
+                    </div>
+                    <div id="stat-resolved-incidents" class="stat-value text-success">0</div>
+                    <div class="stat-sub">Post-incident RCA ready</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">Evidence Records</span>
+                        <span class="stat-badge info">TELEMETRY</span>
+                    </div>
+                    <div id="stat-total-evidence" class="stat-value">0</div>
+                    <div class="stat-sub">Logs, metrics, traces, changes</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">Monitored Services</span>
+                        <span class="stat-badge accent">TOPOLOGY</span>
+                    </div>
+                    <div id="stat-total-services" class="stat-value">0</div>
+                    <div class="stat-sub">Service DAG dependency nodes</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">Investigations</span>
+                        <span class="stat-badge purple">RCA RUNS</span>
+                    </div>
+                    <div id="stat-total-investigations" class="stat-value text-purple">0</div>
+                    <div class="stat-sub">Deterministic analysis runs</div>
+                </div>
+            </div>
+
+            <!-- Incident List with Filters & Search -->
+            <div class="card mt-4">
+                <div class="card-header flex-between">
+                    <div class="card-title-group">
+                        <h2>Incidents Registry</h2>
+                        <span class="card-subtitle">Select any incident to inspect telemetry, deterministic ranking, and root cause proof</span>
+                    </div>
+                    <div class="header-tools">
+                        <button id="btn-refresh-dashboard" class="btn btn-sm btn-secondary">&#8635; Refresh</button>
+                    </div>
+                </div>
+
+                <!-- Incidents Toolbar Filter Bar -->
+                <div class="incident-filter-bar">
+                    <div class="search-box">
+                        <input type="text" id="filter-incident-search" class="form-input" placeholder="Search by ID, title, affected service...">
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-incident-severity">Severity:</label>
+                        <select id="filter-incident-severity" class="form-select sm">
+                            <option value="">All Severities</option>
+                            <option value="CRITICAL">Critical</option>
+                            <option value="HIGH">High</option>
+                            <option value="MEDIUM">Medium</option>
+                            <option value="LOW">Low</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-incident-status">Status:</label>
+                        <select id="filter-incident-status" class="form-select sm">
+                            <option value="">All Statuses</option>
+                            <option value="RESOLVED">Resolved</option>
+                            <option value="OPEN">Open</option>
+                            <option value="ACTIVE">Active</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-incident-service">Service:</label>
+                        <select id="filter-incident-service" class="form-select sm">
+                            <option value="">All Services</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="sort-incident-time">Sort By Time:</label>
+                        <select id="sort-incident-time" class="form-select sm">
+                            <option value="desc">Newest First</option>
+                            <option value="asc">Oldest First</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="card-body no-padding">
+                    <div class="table-responsive">
+                        <table class="data-table" id="table-incidents">
+                            <thead>
+                                <tr>
+                                    <th>Incident ID</th>
+                                    <th>Title & Summary</th>
+                                    <th>Started</th>
+                                    <th>Duration</th>
+                                    <th>Affected Services</th>
+                                    <th>Severity</th>
+                                    <th>Status</th>
+                                    <th>Investigation Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="incidents-table-body">
+                                <tr>
+                                    <td colspan="9" class="text-center text-muted py-4">
+                                        Loading incidents...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Core Principles Notice -->
+            <div class="principles-banner mt-4">
+                <div class="principle-item">
+                    <span class="principle-badge">1. EVIDENCE FIRST</span>
+                    <p>All causal scores are deterministically computed from telemetry correlation before any AI summarization.</p>
+                </div>
+                <div class="principle-item">
+                    <span class="principle-badge">2. VERIFIED CITATIONS</span>
+                    <p>Every finding links directly to immutable database evidence IDs (logs, metrics, traces, changes).</p>
+                </div>
+                <div class="principle-item">
+                    <span class="principle-badge">3. HONEST UNKNOWN</span>
+                    <p>If telemetry is insufficient or conflicting, the system yields <code>UNKNOWN</code> rather than guessing.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 2: INCIDENT INVESTIGATION ================= -->
+        <section id="tab-investigation" class="tab-pane" role="tabpanel">
+            <!-- Incident Selector Bar -->
+            <div class="incident-toolbar">
+                <div class="toolbar-left">
+                    <label for="select-incident">Active Incident:</label>
+                    <select id="select-incident" class="form-select"></select>
+                </div>
+                <div class="toolbar-right">
+                    <button id="btn-run-rca" class="btn btn-primary" title="Run complete RCA with deterministic scoring and verified AI hypothesis">
+                        <span class="btn-icon">&#9658;</span> Run Root Cause Analysis
+                    </button>
+                    <button id="btn-run-rca-no-llm" class="btn btn-secondary" title="Run deterministic RCA without LLM">
+                        Deterministic Only
+                    </button>
+                </div>
+            </div>
+
+            <!-- Incident Overview Header Banner -->
+            <div id="incident-header-banner" class="incident-banner">
+                <div class="banner-top">
+                    <div>
+                        <div class="banner-id-row">
+                            <span id="inv-incident-id" class="badge-id">INC-???</span>
+                            <span id="inv-investigation-badge" class="badge badge-info">PENDING ANALYSIS</span>
+                        </div>
+                        <h2 id="inv-incident-title">Select an incident to begin investigation</h2>
+                    </div>
+                    <div class="banner-meta">
+                        <span id="inv-incident-severity" class="badge badge-severity">SEVERITY</span>
+                        <span id="inv-incident-status" class="badge badge-status">STATUS</span>
+                    </div>
+                </div>
+                <p id="inv-incident-desc" class="banner-desc text-muted">Incident description will appear here.</p>
+                <div class="banner-footer">
+                    <div class="banner-footer-item">
+                        <strong>Affected Services:</strong>
+                        <div id="inv-affected-services" class="pill-group"></div>
+                    </div>
+                    <div class="banner-footer-item">
+                        <strong>Started:</strong> <span id="inv-time-started" class="font-mono text-muted">-</span>
+                    </div>
+                    <div class="banner-footer-item">
+                        <strong>Duration:</strong> <span id="inv-duration" class="badge badge-neutral">-</span>
+                    </div>
+                    <div class="banner-footer-item">
+                        <strong>Telemetry Count:</strong> <span id="inv-telemetry-count" class="font-mono text-info">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- UNKNOWN / INSUFFICIENT EVIDENCE Banner (when confidence threshold not met) -->
+            <div id="insufficient-evidence-banner" class="insufficient-banner hidden">
+                <div class="insufficient-header">
+                    <span class="insufficient-icon">&#9760;</span>
+                    <div>
+                        <h3>UNKNOWN / INSUFFICIENT EVIDENCE</h3>
+                        <p class="insufficient-sub">"Available telemetry does not provide sufficient evidence to identify a reliable root cause."</p>
+                    </div>
+                </div>
+                <div class="insufficient-grid">
+                    <div class="insufficient-card">
+                        <h4>Available Telemetry</h4>
+                        <div id="insufficient-available-text" class="text-muted small">-</div>
+                    </div>
+                    <div class="insufficient-card">
+                        <h4>Missing Telemetry</h4>
+                        <div id="insufficient-missing-text" class="text-muted small">-</div>
+                    </div>
+                    <div class="insufficient-card">
+                        <h4>Why Confidence Is Insufficient</h4>
+                        <div id="insufficient-reason-text" class="text-muted small">-</div>
+                    </div>
+                </div>
+                <div id="insufficient-candidates-section" class="mt-3 hidden">
+                    <h4 style="font-size: 0.85rem; color: #9CA3AF; margin-bottom: 6px;">Possible Inconclusive Candidates Observed:</h4>
+                    <div id="insufficient-candidates-list" class="pill-group"></div>
+                </div>
+            </div>
+
+            <!-- ================= ROOT CAUSE ANALYSIS SECTION ================= -->
+            <div id="rca-main-section">
+                <div class="section-heading-row">
+                    <h2 class="section-title">ROOT CAUSE ANALYSIS</h2>
+                    <span class="section-tag">Deterministic Evidence-To-Cause Ranking</span>
+                </div>
+
+                <!-- 2-Column Core Investigation Layout -->
+                <div class="investigation-grid">
+                    <!-- Column 1: Candidates, Why This Cause, Evidence Citations -->
+                    <div class="inv-col">
+                        <!-- Ranked Candidate Causes Card -->
+                        <div class="card">
+                            <div class="card-header flex-between">
+                                <div class="card-title-group">
+                                    <h3>Ranked Candidate Causes</h3>
+                                    <span class="card-subtitle">Ranked by Deterministic Evidence Score (0.00 – 1.00). Click candidate to view proof.</span>
+                                </div>
+                                <span class="badge badge-neutral" id="candidates-count-badge">0 candidates</span>
+                            </div>
+                            <div class="card-body">
+                                <div id="candidates-container" class="candidates-list">
+                                    <div class="text-center text-muted py-3">Click "Run Root Cause Analysis" to correlate telemetry and identify candidate causes.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- "WHY THIS CAUSE?" Contributing Factors Card -->
+                        <div id="why-this-cause-card" class="card hidden">
+                            <div class="card-header flex-between">
+                                <div class="card-title-group">
+                                    <h3 id="why-cause-title">WHY THIS CAUSE?</h3>
+                                    <span class="card-subtitle" id="why-cause-subtitle">Actual contributing factors returned by deterministic correlation engine</span>
+                                </div>
+                                <span id="why-cause-score-badge" class="badge-score">Score: 0.00</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="scoring-chart-container">
+                                    <canvas id="scoreChart" height="170"></canvas>
+                                </div>
+                                <div id="scoring-factors-list" class="factors-checklist mt-3"></div>
+                            </div>
+                        </div>
+
+                        <!-- SUPPORTING EVIDENCE Section (Expandable Items) -->
+                        <div class="card">
+                            <div class="card-header flex-between">
+                                <div class="card-title-group">
+                                    <h3 class="text-success">
+                                        <span>&#10003;</span> SUPPORTING EVIDENCE
+                                    </h3>
+                                    <span class="card-subtitle">Verified database evidence items that substantiate the selected candidate</span>
+                                </div>
+                                <span id="supporting-count-badge" class="badge badge-success">0 records</span>
+                            </div>
+                            <div class="card-body">
+                                <div id="supporting-evidence-list" class="evidence-expandable-list">
+                                    <div class="text-muted small">No supporting evidence linked yet.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CONTRADICTING EVIDENCE Section -->
+                        <div class="card">
+                            <div class="card-header flex-between">
+                                <div class="card-title-group">
+                                    <h3 class="text-warning">
+                                        <span>&#9888;</span> CONTRADICTING EVIDENCE
+                                    </h3>
+                                    <span class="card-subtitle">Telemetry that weakens or diverges from this candidate (non-cherrypicked telemetry)</span>
+                                </div>
+                                <span id="contradicting-count-badge" class="badge badge-warning">0 records</span>
+                            </div>
+                            <div class="card-body">
+                                <div id="contradicting-evidence-list" class="evidence-expandable-list">
+                                    <div class="text-muted small">No contradicting evidence observed.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Incident Timeline & Service Dependency Graph -->
+                    <div class="inv-col">
+                        <!-- Visual Chronological Timeline -->
+                        <div class="card">
+                            <div class="card-header flex-between">
+                                <div class="card-title-group">
+                                    <h3>Incident Chronological Timeline</h3>
+                                    <span class="card-subtitle">Causal progression from trigger to cascade. Click any event to inspect underlying evidence.</span>
+                                </div>
+                                <span class="badge badge-neutral" id="timeline-count-badge">0 events</span>
+                            </div>
+                            <div class="card-body">
+                                <div id="timeline-container" class="timeline-tree">
+                                    <div class="text-center text-muted py-3">Run RCA to generate incident timeline.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Interactive Service Dependency Graph -->
+                        <div class="card">
+                            <div class="card-header flex-between">
+                                <div class="card-title-group">
+                                    <h3>Service Dependency Graph</h3>
+                                    <span class="card-subtitle">Topological propagation path with suspected root cause and affected services</span>
+                                </div>
+                                <span class="badge badge-neutral" id="topology-nodes-badge">0 nodes</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="topology-legend">
+                                    <span class="legend-item"><span class="dot root"></span> Suspected Root</span>
+                                    <span class="legend-item"><span class="dot affected"></span> Affected Service</span>
+                                    <span class="legend-item"><span class="dot upstream"></span> Upstream Dependent</span>
+                                    <span class="legend-item"><span class="dot healthy"></span> Healthy Service</span>
+                                </div>
+                                <div id="topology-container" class="topology-svg-container">
+                                    <div id="topology-placeholder" class="text-center text-muted py-4">Loading topology...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= AI INVESTIGATION SECTION (Strictly Below Evidence & Deterministic Ranking) ================= -->
+                <div id="ai-investigation-section" class="card mt-4">
+                    <div class="ai-card-header">
+                        <div class="ai-header-left">
+                            <div class="hypothesis-tag">
+                                <span class="warning-icon">&#9888;</span>
+                                <span class="tag-text">AI-GENERATED HYPOTHESIS — NOT A CONFIRMED FINDING</span>
+                            </div>
+                            <h3 class="ai-section-title">AI Investigation & Diagnostic Interpretation</h3>
+                        </div>
+                        <div class="ai-header-right">
+                            <span id="ai-status-badge" class="badge badge-info">HEURISTIC / GEMINI</span>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+                        <div id="ai-unavailable-notice" class="ai-notice-box hidden">
+                            <span class="notice-icon">&#9432;</span>
+                            <div>
+                                <strong>LLM explanation unavailable.</strong>
+                                <p>LLM explanation unavailable — deterministic evidence analysis is still available.</p>
+                            </div>
+                        </div>
+
+                        <div id="ai-content-body">
+                            <!-- Incident Summary & Most Likely Cause -->
+                            <div class="ai-lead-grid">
+                                <div class="ai-lead-card">
+                                    <span class="ai-subheading">INCIDENT SUMMARY</span>
+                                    <p id="ai-incident-summary" class="ai-text">Run RCA to generate summary...</p>
+                                </div>
+                                <div class="ai-lead-card highlight">
+                                    <span class="ai-subheading">MOST LIKELY CAUSE</span>
+                                    <h4 id="ai-most-likely-cause" class="ai-cause-title">Awaiting analysis...</h4>
+                                    <p id="ai-why-text" class="ai-text-sub"></p>
+                                </div>
+                            </div>
+
+                            <!-- Supporting & Contradicting Evidence Citations (Clickable) -->
+                            <div class="ai-citations-grid mt-3">
+                                <div class="citation-box">
+                                    <span class="ai-subheading text-success">&#10003; CITED SUPPORTING EVIDENCE</span>
+                                    <div id="ai-supporting-citations" class="pill-group mt-2">
+                                        <span class="text-muted small">None cited</span>
+                                    </div>
+                                </div>
+                                <div class="citation-box">
+                                    <span class="ai-subheading text-warning">&#9888; CITED CONTRADICTING EVIDENCE</span>
+                                    <div id="ai-contradicting-citations" class="pill-group mt-2">
+                                        <span class="text-muted small">None cited</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Alternatives, Timeline Interpretation, Unknowns -->
+                            <div class="ai-details-grid mt-3">
+                                <div class="ai-detail-card">
+                                    <span class="ai-subheading">ALTERNATIVE CAUSES CONSIDERED</span>
+                                    <div id="ai-alternative-causes" class="ai-alternatives-list mt-2">
+                                        <div class="text-muted small">No alternatives evaluated yet.</div>
+                                    </div>
+                                </div>
+                                <div class="ai-detail-card">
+                                    <span class="ai-subheading">TIMELINE INTERPRETATION</span>
+                                    <p id="ai-timeline-interp" class="ai-text mt-2">-</p>
+                                </div>
+                                <div class="ai-detail-card">
+                                    <span class="ai-subheading">UNKNOWNS & REMAINING QUESTIONS</span>
+                                    <p id="ai-unknowns" class="ai-text mt-2">-</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 3: EVIDENCE EXPLORER ================= -->
+        <section id="tab-explorer" class="tab-pane" role="tabpanel">
+            <div class="card">
+                <div class="card-header flex-between">
+                    <div class="card-title-group">
+                        <h2>Evidence Explorer</h2>
+                        <span class="card-subtitle">Filter, search, and audit normalized telemetry across services and source types</span>
+                    </div>
+                    <span class="badge badge-neutral" id="explorer-count-badge">0 records</span>
+                </div>
+
+                <!-- Explorer Filter Controls -->
+                <div class="explorer-filter-panel">
+                    <!-- Source Type Buttons -->
+                    <div class="type-filter-group" role="group">
+                        <span class="filter-label">Type:</span>
+                        <button class="type-filter-btn active" data-type="">ALL</button>
+                        <button class="type-filter-btn" data-type="LOG">LOG</button>
+                        <button class="type-filter-btn" data-type="METRIC">METRIC</button>
+                        <button class="type-filter-btn" data-type="TRACE">TRACE</button>
+                        <button class="type-filter-btn" data-type="DEPLOYMENT">DEPLOYMENT</button>
+                        <button class="type-filter-btn" data-type="CONFIGURATION">CONFIGURATION</button>
+                        <button class="type-filter-btn" data-type="DEPENDENCY">DEPENDENCY</button>
+                    </div>
+
+                    <!-- Filter Dropdowns & Search -->
+                    <div class="filter-controls-row mt-2">
+                        <div class="search-box">
+                            <input type="text" id="explorer-search" class="form-input" placeholder="Search summaries, services, details, IDs...">
+                        </div>
+                        <div class="filter-group">
+                            <label for="explorer-source-type">Source:</label>
+                            <select id="explorer-source-type" class="form-select sm">
+                                <option value="">All Sources</option>
+                                <option value="ORGANIZER">ORGANIZER</option>
+                                <option value="SYNTHETIC_DEMO">SYNTHETIC_DEMO</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="explorer-service-filter">Service:</label>
+                            <select id="explorer-service-filter" class="form-select sm">
+                                <option value="">All Services</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="explorer-severity-filter">Severity:</label>
+                            <select id="explorer-severity-filter" class="form-select sm">
+                                <option value="">All Severities</option>
+                                <option value="CRITICAL">Critical</option>
+                                <option value="HIGH">High</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="LOW">Low</option>
+                                <option value="INFO">Info</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="explorer-incident-filter">Incident:</label>
+                            <select id="explorer-incident-filter" class="form-select sm">
+                                <option value="">All Incidents</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body no-padding">
+                    <div class="table-responsive">
+                        <table class="data-table" id="table-evidence">
+                            <thead>
+                                <tr>
+                                    <th>Evidence ID</th>
+                                    <th>Timestamp</th>
+                                    <th>Service</th>
+                                    <th>Type</th>
+                                    <th>Severity</th>
+                                    <th>Anomaly</th>
+                                    <th>Source</th>
+                                    <th>Message / Summary</th>
+                                    <th>Trace / Deploy / Config ID</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="evidence-table-body">
+                                <tr>
+                                    <td colspan="10" class="text-center text-muted py-4">
+                                        Loading evidence records...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 4: EVALUATION & BENCHMARK PAGE ================= -->
+        <section id="tab-evaluation" class="tab-pane" role="tabpanel">
+            <!-- Evaluation Notice Banner -->
+            <div class="evaluation-notice-card mb-4">
+                <div class="notice-left">
+                    <span class="notice-icon">&#9878;</span>
+                    <div>
+                        <h3>Ground-Truth Benchmark Evaluation</h3>
+                        <p class="text-muted">
+                            Evaluates RCA accuracy, ranking precision (MRR), and unknown detection. Metrics requiring ground-truth labels are only calculated when verified benchmark truth datasets are loaded.
+                        </p>
+                    </div>
+                </div>
+                <div class="notice-right">
+                    <span id="ground-truth-badge" class="badge badge-warning">Pending organizer ground truth</span>
+                </div>
+            </div>
+
+            <!-- Benchmark Metric Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">Top-1 Accuracy</span>
+                        <span class="stat-badge total">ACCURACY</span>
+                    </div>
+                    <div id="metric-top1" class="stat-value text-muted" style="font-size: 1.15rem;">Pending organizer ground truth</div>
+                    <div class="stat-sub">Ground truth labels required</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">Top-3 Accuracy</span>
+                        <span class="stat-badge info">RECALL</span>
+                    </div>
+                    <div id="metric-top3" class="stat-value text-muted" style="font-size: 1.15rem;">Pending organizer ground truth</div>
+                    <div class="stat-sub">Ground truth labels required</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">Mean Reciprocal Rank</span>
+                        <span class="stat-badge purple">MRR</span>
+                    </div>
+                    <div id="metric-mrr" class="stat-value text-muted" style="font-size: 1.15rem;">Pending organizer ground truth</div>
+                    <div class="stat-sub">Ground truth labels required</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">Unknown Detection</span>
+                        <span class="stat-badge warning">GUARDRAIL</span>
+                    </div>
+                    <div id="metric-unknown" class="stat-value text-muted" style="font-size: 1.15rem;">Pending organizer ground truth</div>
+                    <div class="stat-sub">Ground truth labels required</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">Evidence Coverage</span>
+                        <span class="stat-badge success">REAL METRIC</span>
+                    </div>
+                    <div id="metric-coverage" class="stat-value text-success">0.0%</div>
+                    <div class="stat-sub">Incidents with telemetry</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-title">Mean Analysis Time</span>
+                        <span class="stat-badge accent">LATENCY</span>
+                    </div>
+                    <div id="metric-time" class="stat-value text-accent">~140ms</div>
+                    <div class="stat-sub">Deterministic compute speed</div>
+                </div>
+            </div>
+
+            <!-- Incident Benchmark Run Results Table -->
+            <div class="card mt-4">
+                <div class="card-header flex-between">
+                    <div class="card-title-group">
+                        <h2>Incident Evaluation Registry</h2>
+                        <span class="card-subtitle">Real RCA status and identified root causes across all registered incidents</span>
+                    </div>
+                    <button id="btn-refresh-eval" class="btn btn-sm btn-secondary">&#8635; Refresh</button>
+                </div>
+                <div class="card-body no-padding">
+                    <div class="table-responsive">
+                        <table class="data-table" id="table-evaluation">
+                            <thead>
+                                <tr>
+                                    <th>Incident ID</th>
+                                    <th>Title</th>
+                                    <th>Telemetry Records</th>
+                                    <th>Analysis Status</th>
+                                    <th>Identified Root Cause</th>
+                                    <th>Evidence Score</th>
+                                    <th>Analyzed At</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="evaluation-table-body">
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">Loading evaluation records...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 5: ADMIN & AUDIT LOGS ================= -->
+        <section id="tab-admin" class="tab-pane" role="tabpanel">
+            <div class="section-header flex-between">
+                <div>
+                    <h2 class="section-title">Security Administration & Audit Logs</h2>
+                    <p class="section-subtitle">Role-Based Access Control (RBAC), user management, and immutable system audit trail.</p>
+                </div>
+                <button id="btn-toggle-create-user" class="btn btn-primary">
+                    <span>+</span> Provision New User
+                </button>
+            </div>
+
+            <!-- Create User Card (Collapsible) -->
+            <div id="create-user-card" class="card mt-3 hidden">
+                <div class="card-header">
+                    <h3 class="card-title">Provision New User Account</h3>
+                </div>
+                <div class="card-body">
+                    <form id="create-user-form" class="admin-form-grid">
+                        <div class="form-row-grid">
+                            <div class="form-group">
+                                <label class="form-label" for="new-username">Username</label>
+                                <input type="text" id="new-username" class="filter-input" placeholder="e.g. sec_engineer" required autocomplete="off">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="new-password">Password</label>
+                                <input type="password" id="new-password" class="filter-input" placeholder="Minimum 6 characters" required autocomplete="new-password">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="new-role">Assigned Role</label>
+                                <select id="new-role" class="filter-select">
+                                    <option value="INCIDENT_RESPONDER">Incident Responder / SRE</option>
+                                    <option value="VIEWER">Viewer / Auditor</option>
+                                    <option value="ADMIN">Admin</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="new-email">Email (Optional)</label>
+                                <input type="email" id="new-email" class="filter-input" placeholder="user@tracewise.internal">
+                            </div>
+                        </div>
+                        <div class="form-actions mt-3 flex-gap">
+                            <button type="submit" class="btn btn-primary">Save User Account</button>
+                            <button type="button" id="btn-cancel-create-user" class="btn btn-secondary">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Users Table Card -->
+            <div class="card mt-4">
+                <div class="card-header flex-between">
+                    <div>
+                        <h3 class="card-title">Registered System Users</h3>
+                        <p class="text-muted small">Passwords are securely hashed with scrypt and never displayed in responses or views.</p>
+                    </div>
+                    <span id="admin-user-count" class="badge badge-purple">3 Users</span>
+                </div>
+                <div class="card-body no-padding">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>User ID</th>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Email</th>
+                                    <th>Created At</th>
+                                    <th>Role Actions</th>
+                                    <th>Account Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-users-table-body">
+                                <tr><td colspan="8" class="text-center text-muted py-3">Loading users...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security Audit Trail Card -->
+            <div class="card mt-4">
+                <div class="card-header flex-between">
+                    <div>
+                        <h3 class="card-title">Security & Investigation Audit Log</h3>
+                        <p class="text-muted small">Immutable log of authentication events, RCA runs, role updates, and unauthorized access attempts.</p>
+                    </div>
+                    <div class="flex-gap">
+                        <select id="audit-filter-action" class="filter-select input-sm">
+                            <option value="">All Actions</option>
+                            <option value="LOGIN">LOGIN</option>
+                            <option value="FAILED_LOGIN">FAILED_LOGIN</option>
+                            <option value="UNAUTHORIZED_ACCESS">UNAUTHORIZED_ACCESS</option>
+                            <option value="RUN_RCA">RUN_RCA</option>
+                            <option value="CREATE_USER">CREATE_USER</option>
+                            <option value="UPDATE_ROLE">UPDATE_ROLE</option>
+                            <option value="INGEST_TELEMETRY">INGEST_TELEMETRY</option>
+                        </select>
+                        <button id="btn-refresh-audit" class="btn btn-sm btn-secondary">&#8635; Refresh</button>
+                    </div>
+                </div>
+                <div class="card-body no-padding">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>User</th>
+                                    <th>Role</th>
+                                    <th>Action</th>
+                                    <th>Resource</th>
+                                    <th>Result</th>
+                                    <th>Metadata</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-audit-table-body">
+                                <tr><td colspan="7" class="text-center text-muted py-3">Loading audit records...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal for Detailed Evidence Record Inspection -->
+    <div id="evidence-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-evidence-id">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <span class="badge-id" id="modal-evidence-id">Evidence Record</span>
+                    <span class="modal-header-sub" id="modal-source-badge"></span>
+                </div>
+                <button id="btn-close-modal" class="modal-close" aria-label="Close modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-grid-row">
+                    <div class="modal-field">
+                        <span class="modal-label">Service:</span>
+                        <span id="modal-service" class="badge">service</span>
+                    </div>
+                    <div class="modal-field">
+                        <span class="modal-label">Evidence Type:</span>
+                        <span id="modal-type" class="badge">LOG</span>
+                    </div>
+                    <div class="modal-field">
+                        <span class="modal-label">Severity:</span>
+                        <span id="modal-severity" class="badge">HIGH</span>
+                    </div>
+                    <div class="modal-field">
+                        <span class="modal-label">Anomaly Score:</span>
+                        <span id="modal-anomaly-score" class="font-mono text-warning">0.00</span>
+                    </div>
+                </div>
+
+                <div class="modal-field mt-3">
+                    <span class="modal-label">Timestamp:</span>
+                    <span id="modal-timestamp" class="font-mono text-muted">-</span>
+                </div>
+
+                <div class="modal-field mt-2">
+                    <span class="modal-label">Message / Summary:</span>
+                    <p id="modal-summary" class="modal-text"></p>
+                </div>
+
+                <!-- Telemetry Specific Linkages -->
+                <div id="modal-linkages-section" class="modal-linkages-box mt-2">
+                    <span class="modal-label">Telemetry Identifiers:</span>
+                    <div id="modal-linkages-grid" class="linkages-grid"></div>
+                </div>
+
+                <div class="modal-field mt-3">
+                    <span class="modal-label">Raw Telemetry Payload & Attributes (JSON):</span>
+                    <pre id="modal-json" class="code-block"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= LOGIN MODAL ================= -->
+    <div id="login-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="login-title">
+        <div class="modal-card modal-auth-card">
+            <div class="modal-header">
+                <div>
+                    <div class="brand-name-row">
+                        <div class="logo-mark sm">AO-03</div>
+                        <h3 id="login-title" class="brand-title">Sign In to TraceWise</h3>
+                    </div>
+                    <p class="text-muted small mt-1">Role-Based Access Control (RBAC) System</p>
+                </div>
+                <button id="login-modal-close" class="modal-close" aria-label="Close Modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="login-alert-box" class="alert-banner alert-danger hidden" style="display: none;">
+                    <span id="login-alert-text"></span>
+                </div>
+                <form id="login-form">
+                    <div class="form-group mb-3">
+                        <label class="form-label" for="login-username">Username or Email</label>
+                        <input type="text" id="login-username" class="form-input filter-input" placeholder="e.g. admin, sre, viewer, or email" required autocomplete="username">
+                    </div>
+                    <div class="form-group mb-3">
+                        <div class="form-label-row">
+                            <label class="form-label" for="login-password">Password</label>
+                        </div>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="login-password" class="form-input filter-input" placeholder="Enter password" required autocomplete="current-password">
+                            <button type="button" id="btn-toggle-password" class="btn-toggle-pw" aria-label="Toggle password visibility" title="Show/Hide Password">
+                                <span id="pw-toggle-icon">&#128065;</span>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" id="btn-login-submit" class="btn btn-primary btn-block">
+                        Authenticate & Enter
+                    </button>
+                </form>
+
+                <div class="quick-demo-logins mt-4">
+                    <span class="demo-login-label">Quick Demo Access:</span>
+                    <div class="demo-buttons-col mt-2">
+                        <button type="button" class="btn btn-xs btn-purple-outline quick-login-btn" data-role="ADMIN">
+                            <span>&#128081;</span> <strong>Admin</strong> (Full Control)
+                        </button>
+                        <button type="button" class="btn btn-xs btn-blue-outline quick-login-btn" data-role="INCIDENT_RESPONDER">
+                            <span>&#128295;</span> <strong>SRE / Responder</strong> (Investigate & RCA)
+                        </button>
+                        <button type="button" class="btn btn-xs btn-teal-outline quick-login-btn" data-role="VIEWER">
+                            <span>&#128065;</span> <strong>Viewer / Auditor</strong> (Read-Only)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts (Loaded in dependency order) -->
+    <script src="/static/js/auth.js?v=1.0.5"></script>
+    <script src="/static/js/explorer.js?v=1.0.5"></script>
+    <script src="/static/js/investigation.js?v=1.0.5"></script>
+    <script src="/static/js/app.js?v=1.0.5"></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+# Environment secrets
+.env
+*.env
+!.env.example
+
+# Python virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+.vscode/
+.idea/
+
+# Local databases (never commit runtime sqlite telemetry databases)
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+
+# Temporary / Scratch
+scratch/
+*.log
+
+# Operating System files
+.DS_Store
+Thumbs.db
